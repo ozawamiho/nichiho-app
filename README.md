@@ -1,4 +1,4 @@
-[index_fixed.html](https://github.com/user-attachments/files/26670940/index_fixed.html)
+[index.html](https://github.com/user-attachments/files/26670940/index_fixed.html)
 # nichiho-app
 日報アプリ
 <html lang="ja"><head>
