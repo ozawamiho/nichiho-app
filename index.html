@@ -74,7 +74,27 @@ async function syncFromFirestore(userName) {
     if (!userName) return;
     
     const userDoc = await db.collection('users').doc(userName).get();
-    if (!userDoc.exists) return;
+    if (!userDoc.exists) {
+      // User not in Firestore yet - push their local data up
+      const userData = {};
+      const reports = localStorage.getItem('nissho_reports_' + userName);
+      if (reports) userData.reports = JSON.parse(reports);
+      const settings = localStorage.getItem('nissho_settings_' + userName);
+      if (settings) userData.settings = JSON.parse(settings);
+      const weekly = localStorage.getItem('nissho_weekly_' + userName);
+      if (weekly) userData.weekly = JSON.parse(weekly);
+      const daysoff = localStorage.getItem('nissho_daysoff_' + userName);
+      if (daysoff) userData.daysoff = JSON.parse(daysoff);
+      const annual = localStorage.getItem('nissho_annual_' + userName);
+      if (annual) userData.annual = JSON.parse(annual);
+      const draft = localStorage.getItem('nissho_draft_' + userName);
+      if (draft) userData.draft = JSON.parse(draft);
+      if (Object.keys(userData).length > 0) {
+        await db.collection('users').doc(userName).set(userData, { merge: true });
+        console.log('Pushed local data for ' + userName + ' to Firestore');
+      }
+      return;
+    }
     
     const data = userDoc.data();
     
@@ -105,16 +125,69 @@ async function syncFromFirestore(userName) {
   }
 }
 
+async function initialPushToFirestore() {
+  try {
+    if (!fsReady) return;
+    console.log('Initial migration: pushing localStorage to Firestore...');
+    
+    // Push users list
+    const users = JSON.parse(localStorage.getItem('nissho_users') || '[]');
+    if (users.length > 0) {
+      await db.collection('app').doc('config').set({ users: users }, { merge: true });
+    }
+    
+    // Push admin password
+    const adminPw = localStorage.getItem('nissho_admin_pw');
+    if (adminPw) {
+      await db.collection('app').doc('config').set({ adminPw: adminPw }, { merge: true });
+    }
+    
+    // Push each user's data
+    for (const userName of users) {
+      const userData = {};
+      const reports = localStorage.getItem('nissho_reports_' + userName);
+      if (reports) userData.reports = JSON.parse(reports);
+      const settings = localStorage.getItem('nissho_settings_' + userName);
+      if (settings) userData.settings = JSON.parse(settings);
+      const weekly = localStorage.getItem('nissho_weekly_' + userName);
+      if (weekly) userData.weekly = JSON.parse(weekly);
+      const daysoff = localStorage.getItem('nissho_daysoff_' + userName);
+      if (daysoff) userData.daysoff = JSON.parse(daysoff);
+      const annual = localStorage.getItem('nissho_annual_' + userName);
+      if (annual) userData.annual = JSON.parse(annual);
+      const draft = localStorage.getItem('nissho_draft_' + userName);
+      if (draft) userData.draft = JSON.parse(draft);
+      
+      if (Object.keys(userData).length > 0) {
+        await db.collection('users').doc(userName).set(userData, { merge: true });
+      }
+    }
+    console.log('Initial migration complete!');
+  } catch (err) {
+    console.log('Initial migration failed:', err.message);
+  }
+}
+
 async function syncAppDataFromFirestore() {
   try {
     if (!fsReady) return;
     
     const configDoc = await db.collection('app').doc('config').get();
-    if (!configDoc.exists) return;
+    if (!configDoc.exists) {
+      // Firestore is empty - push local data up (first-time migration)
+      await initialPushToFirestore();
+      return;
+    }
     
     const data = configDoc.data();
     if (data.users !== undefined) {
-      localStorage.setItem('nissho_users', JSON.stringify(data.users));
+      const localUsers = JSON.parse(localStorage.getItem('nissho_users') || '[]');
+      // Merge: combine Firestore users with local users (no duplicates)
+      const merged = [...new Set([...data.users, ...localUsers])];
+      localStorage.setItem('nissho_users', JSON.stringify(merged));
+      if (merged.length > data.users.length) {
+        await db.collection('app').doc('config').set({ users: merged }, { merge: true });
+      }
     }
     if (data.adminPw !== undefined) {
       localStorage.setItem('nissho_admin_pw', data.adminPw);
