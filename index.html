@@ -262,4 +262,58 @@ window.calcAchievementRate=function(userName){const reports=getReports(userName)
         </svg>
         <span id="claude-static-close-tooltip" style="position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); padding: 6px 12px; background: #30302E; color: #FAF9F5; border-radius: 6px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Dismiss</span>
       </button>
-    </div><div class="glasp-extension" style="display: block; width: unset; margin: unset; padding: unset; border: unset; border-radius: unset; outline: unset; background-color: unset; box-shadow: unset; position: fixed; bottom: 16px; right: 16px; z-index: 9999;"><div class="glasp-extension" style="font-family: inherit;"></div></div><div class="glasp-extension-toaster" style="display: block; width: 320px; margin: unset; padding: unset; border: unset; border-radius: unset; outline: unset; background-color: unset; box-shadow: unset; position: fixed; top: 40px; right: 24px; z-index: 9999;"></div><div id="claude-agent-glow-border" style="position: fixed; inset: 0px; pointer-events: none; z-index: 2147483646; opacity: 1; transition: opacity 0.3s ease-in-out; animation: 2s ease-in-out 0s infinite normal none running claude-pulse; box-shadow: rgba(217, 119, 87, 0.5) 0px 0px 10px inset, rgba(217, 119, 87, 0.3) 0px 0px 20px inset, rgba(217, 119, 87, 0.1) 0px 0px 30px inset;"></div></body><div class="glasp-extension" style="display: block; width: unset; margin: unset; padding: unset; border: unset; border-radius: unset; outline: unset; background-color: unset; box-shadow: unset; position: fixed; bottom: 16px; right: 16px; z-index: 9999;"><div class="glasp-extension" style="font-family: inherit;"></div></div></html>
+    </div><div class="glasp-extension" style="display: block; width: unset; margin: unset; padding: unset; border: unset; border-radius: unset; outline: unset; background-color: unset; box-shadow: unset; position: fixed; bottom: 16px; right: 16px; z-index: 9999;"><div class="glasp-extension" style="font-family: inherit;"></div></div><div class="glasp-extension-toaster" style="display: block; width: 320px; margin: unset; padding: unset; border: unset; border-radius: unset; outline: unset; background-color: unset; box-shadow: unset; position: fixed; top: 40px; right: 24px; z-index: 9999;"></div><div id="claude-agent-glow-border" style="position: fixed; inset: 0px; pointer-events: none; z-index: 2147483646; opacity: 1; transition: opacity 0.3s ease-in-out; animation: 2s ease-in-out 0s infinite normal none running claude-pulse; box-shadow: rgba(217, 119, 87, 0.5) 0px 0px 10px inset, rgba(217, 119, 87, 0.3) 0px 0px 20px inset, rgba(217, 119, 87, 0.1) 0px 0px 30px inset;"></div>
+<script>
+(function __weeklyGoalEnhancement(){
+  function addDays(s,n){var d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function computeWeek(name){
+    var mon=getMondayStr(today());var sun=addDays(mon,6);
+    var wg=(getWeeklyGoals(name)||{})[mon]||{};
+    var work=(wg.work||[]).filter(function(x){return x&&String(x).trim();});
+    var company=(wg.company?String(wg.company).trim():'');
+    var attitude=(wg.attitude?String(wg.attitude).trim():'');
+    var reports=getReports(name)||[];var ach=0,total=0;
+    reports.forEach(function(r){if(r&&r.date>=mon&&r.date<=sun){var a=calcDayAchievement(r);ach+=a.ach;total+=a.total;}});
+    var rate=total>0?Math.round(ach/total*100):null;
+    return {mon:mon,sun:sun,work:work,company:company,attitude:attitude,ach:ach,total:total,rate:rate};
+  }
+  function buildPanelHTML(name){
+    var w=computeWeek(name);
+    var rateTxt = w.rate===null? '記録なし' : w.rate+'%';
+    var barW = w.rate===null?0:w.rate;
+    var body='';
+    if(w.work.length){ body+='<div style="opacity:.85;font-size:11px;margin-bottom:2px;">仕事目標</div>'; body+=w.work.map(function(v){return '・'+esc(v);}).join('<br>'); }
+    if(w.company){ body+='<div style="opacity:.85;font-size:11px;margin:6px 0 2px;">全社目標</div>'+esc(w.company); }
+    if(w.attitude){ body+='<div style="opacity:.85;font-size:11px;margin:6px 0 2px;">姿勢目標</div>'+esc(w.attitude); }
+    if(!body){ body='<span style="opacity:.85;">今週の目標は未設定です</span>'; }
+    return '<div id="weeklyGoalPanel" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);color:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">'
+      +'<div style="font-weight:700;">🎯 今週の目標</div>'
+      +'<div style="background:rgba(255,255,255,.22);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;">達成率 '+rateTxt+'</div>'
+      +'</div>'
+      +'<div style="font-size:13px;line-height:1.6;">'+body+'</div>'
+      +'<div style="margin-top:9px;height:6px;background:rgba(255,255,255,.22);border-radius:999px;overflow:hidden;"><div style="height:100%;width:'+barW+'%;background:#fff;border-radius:999px;"></div></div>'
+      +'</div>';
+  }
+  function currentName(){ try{ if(typeof S!=='undefined'){ if(S.isAdmin&&S.adminViewingUser) return S.adminViewingUser; if(S.user&&S.user.name) return S.user.name; } }catch(e){} return null; }
+  function inject(){
+    try{
+      var name=currentName(); if(!name) return;
+      var grid=Array.prototype.slice.call(document.querySelectorAll('div')).find(function(d){var t=(d.textContent||'').replace(/\s/g,'');return t.indexOf('日月火水木金土')===0;});
+      if(!grid||!grid.parentNode) return;
+      var old=document.getElementById('weeklyGoalPanel'); if(old) old.remove();
+      var tmp=document.createElement('div'); tmp.innerHTML=buildPanelHTML(name);
+      grid.parentNode.insertBefore(tmp.firstChild, grid);
+    }catch(e){}
+  }
+  ['renderCalendar','renderAdminUserReports'].forEach(function(fn){
+    var orig=window[fn];
+    if(typeof orig==='function'&&!orig.__wpWrapped){
+      window[fn]=function(){var r=orig.apply(this,arguments); setTimeout(inject,0); return r;};
+      window[fn].__wpWrapped=true;
+    }
+  });
+  setTimeout(inject,0);
+ })();
+</script>
+</body><div class="glasp-extension" style="display: block; width: unset; margin: unset; padding: unset; border: unset; border-radius: unset; outline: unset; background-color: unset; box-shadow: unset; position: fixed; bottom: 16px; right: 16px; z-index: 9999;"><div class="glasp-extension" style="font-family: inherit;"></div></div></html>
