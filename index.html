@@ -272,47 +272,30 @@ window.calcAchievementRate=function(userName){const reports=getReports(userName)
     var work=(wg.work||[]).filter(function(x){return x&&String(x).trim();});
     var company=(wg.company?String(wg.company).trim():'');
     var attitude=(wg.attitude?String(wg.attitude).trim():'');
-    var reports=getReports(name)||[];var ach=0,total=0;
-    reports.forEach(function(r){if(r&&r.date>=mon&&r.date<=sun){var a=calcDayAchievement(r);ach+=a.ach;total+=a.total;}});
+    var reports=getReports(name)||[];var ach=0,total=0,achItems=[];
+    reports.forEach(function(r){if(r&&r.date>=mon&&r.date<=sun){var a=calcDayAchievement(r);ach+=a.ach;total+=a.total;(r.reflect_quant||[]).forEach(function(it){if(it&&typeof it==='object'&&it.result==='achieved'&&(it.text||'').trim())achItems.push(String(it.text).trim());});}});
     var rate=total>0?Math.round(ach/total*100):null;
-    return {mon:mon,sun:sun,work:work,company:company,attitude:attitude,ach:ach,total:total,rate:rate};
+    return {mon:mon,sun:sun,work:work,company:company,attitude:attitude,ach:ach,total:total,rate:rate,achItems:achItems};
   }
   function buildPanelHTML(name){
     var w=computeWeek(name);
-    var rateTxt = w.rate===null? '記録なし' : w.rate+'%';
-    var barW = w.rate===null?0:w.rate;
+    var rateTxt=w.rate===null?'記録なし':w.rate+'%';var barW=w.rate===null?0:w.rate;
     var body='';
-    if(w.work.length){ body+='<div style="opacity:.85;font-size:11px;margin-bottom:2px;">仕事目標</div>'; body+=w.work.map(function(v){return '・'+esc(v);}).join('<br>'); }
-    if(w.company){ body+='<div style="opacity:.85;font-size:11px;margin:6px 0 2px;">全社目標</div>'+esc(w.company); }
-    if(w.attitude){ body+='<div style="opacity:.85;font-size:11px;margin:6px 0 2px;">姿勢目標</div>'+esc(w.attitude); }
-    if(!body){ body='<span style="opacity:.85;">今週の目標は未設定です</span>'; }
+    if(w.work.length){body+='<div style="opacity:.85;font-size:11px;margin-bottom:2px;">仕事目標</div>'+w.work.map(function(v){return '・'+esc(v);}).join('<br>');}
+    if(w.company){body+='<div style="opacity:.85;font-size:11px;margin:6px 0 2px;">全社目標</div>'+esc(w.company);}
+    if(w.attitude){body+='<div style="opacity:.85;font-size:11px;margin:6px 0 2px;">姿勢目標</div>'+esc(w.attitude);}
+    if(!body){body='<span style="opacity:.85;">今週の目標は未設定です</span>';}
+    var achHtml='';
+    if(w.achItems.length){achHtml='<div style="margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.25);"><div style="font-size:12px;font-weight:700;margin-bottom:3px;">✅ 達成できた項目（'+w.achItems.length+'件）</div>'+w.achItems.map(function(v){return '<div style="font-size:12px;line-height:1.5;">・'+esc(v)+'</div>';}).join('')+'</div>';}
     return '<div id="weeklyGoalPanel" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);color:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">'
-      +'<div style="font-weight:700;">🎯 今週の目標</div>'
-      +'<div style="background:rgba(255,255,255,.22);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;">達成率 '+rateTxt+'</div>'
-      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;"><div style="font-weight:700;">🎯 今週の目標</div><div style="background:rgba(255,255,255,.22);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;">達成率 '+rateTxt+'</div></div>'
       +'<div style="font-size:13px;line-height:1.6;">'+body+'</div>'
       +'<div style="margin-top:9px;height:6px;background:rgba(255,255,255,.22);border-radius:999px;overflow:hidden;"><div style="height:100%;width:'+barW+'%;background:#fff;border-radius:999px;"></div></div>'
-      +'</div>';
+      +achHtml+'</div>';
   }
-  function currentName(){ try{ if(typeof S!=='undefined'){ if(S.isAdmin&&S.adminViewingUser) return S.adminViewingUser; if(S.user&&S.user.name) return S.user.name; } }catch(e){} return null; }
-  function inject(){
-    try{
-      var name=currentName(); if(!name) return;
-      var grid=Array.prototype.slice.call(document.querySelectorAll('div')).find(function(d){var t=(d.textContent||'').replace(/\s/g,'');return t.indexOf('日月火水木金土')===0;});
-      if(!grid||!grid.parentNode) return;
-      var old=document.getElementById('weeklyGoalPanel'); if(old) old.remove();
-      var tmp=document.createElement('div'); tmp.innerHTML=buildPanelHTML(name);
-      grid.parentNode.insertBefore(tmp.firstChild, grid);
-    }catch(e){}
-  }
-  ['renderCalendar','renderAdminUserReports'].forEach(function(fn){
-    var orig=window[fn];
-    if(typeof orig==='function'&&!orig.__wpWrapped){
-      window[fn]=function(){var r=orig.apply(this,arguments); setTimeout(inject,0); return r;};
-      window[fn].__wpWrapped=true;
-    }
-  });
+  function currentName(){try{if(typeof S!=='undefined'){if(S.isAdmin&&S.adminViewingUser)return S.adminViewingUser;if(S.user&&S.user.name)return S.user.name;}}catch(e){}return null;}
+  function inject(){try{var name=currentName();if(!name)return;var grid=Array.prototype.slice.call(document.querySelectorAll('div')).find(function(d){var t=(d.textContent||'').replace(/\s/g,'');return t.indexOf('日月火水木金土')===0;});if(!grid||!grid.parentNode)return;var old=document.getElementById('weeklyGoalPanel');if(old)old.remove();var tmp=document.createElement('div');tmp.innerHTML=buildPanelHTML(name);grid.parentNode.insertBefore(tmp.firstChild,grid);}catch(e){}}
+  ['renderCalendar','renderAdminUserReports'].forEach(function(fn){var orig=window[fn];if(typeof orig==='function'&&!orig.__wpWrapped){window[fn]=function(){var r=orig.apply(this,arguments);setTimeout(inject,0);return r;};window[fn].__wpWrapped=true;}});
   setTimeout(inject,0);
  })();
 </script>
