@@ -352,13 +352,21 @@ window.calcAchievementRate=function(userName){const reports=getReports(userName)
         +'<div style="flex:1 1 200px;min-width:0;"><div style="font-size:11px;font-weight:700;opacity:.9;margin-bottom:4px;">📝 進捗</div>'+progBox+'</div>'
       +'</div></div>';
   }
+  function findAnchor(){
+    var a=document.getElementById('weeklyGoalPanel');
+    if(a)return a;
+    a=Array.prototype.slice.call(document.querySelectorAll('.card')).find(function(c){var h=c.querySelector('.card-header');return h&&h.textContent&&h.textContent.indexOf('今週の目標')!==-1;});
+    if(a)return a;
+    a=Array.prototype.slice.call(document.querySelectorAll('div')).find(function(d){var t=(d.textContent||'').replace(/\s/g,'');return t.indexOf('日月火水木金土')===0;});
+    return a||null;
+  }
   function inject(){try{
-    var name=currentName();if(!name)return;
-    var anchor=document.getElementById('weeklyGoalPanel');
-    if(!anchor){anchor=Array.prototype.slice.call(document.querySelectorAll('.card')).find(function(c){var h=c.querySelector('.card-header');return h&&h.textContent&&h.textContent.indexOf('今週の目標')!==-1;});}
-    if(!anchor){anchor=Array.prototype.slice.call(document.querySelectorAll('div')).find(function(d){var t=(d.textContent||'').replace(/\s/g,'');return t.indexOf('日月火水木金土')===0;});}
-    if(!anchor||!anchor.parentNode)return;
-    var old=document.getElementById('monthlyGoalPanel');if(old)old.remove();
+    var name=currentName();
+    var anchor=name?findAnchor():null;
+    var existing=document.getElementById('monthlyGoalPanel');
+    if(!anchor||!anchor.parentNode){ if(existing)existing.remove(); return; }
+    if(existing&&existing.nextElementSibling===anchor) return; /* already in place; don't rebuild (keeps textarea input) */
+    if(existing)existing.remove();
     var tmp=document.createElement('div');tmp.innerHTML=buildMonthlyHTML(name);
     anchor.parentNode.insertBefore(tmp.firstChild,anchor);
   }catch(e){}}
@@ -367,6 +375,9 @@ window.calcAchievementRate=function(userName){const reports=getReports(userName)
   window.__mgGoalInput=function(el){clearTimeout(__mgGoalTimer);__mgGoalTimer=setTimeout(function(){window.__mgSaveGoal(el.value);},800);};
   window.__mgProgInput=function(el){clearTimeout(__mgProgTimer);__mgProgTimer=setTimeout(function(){window.__mgSaveProg(el.value);},800);};
   ['renderCalendar','renderAdminUserReports','renderReportForm'].forEach(function(fn){var orig=window[fn];if(typeof orig==='function'&&!orig.__mgWrapped){window[fn]=function(){var r=orig.apply(this,arguments);setTimeout(inject,0);return r;};window[fn].__mgWrapped=true;}});
+  var __mgObsTimer;
+  function scheduleInject(){clearTimeout(__mgObsTimer);__mgObsTimer=setTimeout(inject,120);}
+  try{ var obs=new MutationObserver(scheduleInject); obs.observe(document.body,{childList:true,subtree:true}); }catch(e){}
   setTimeout(inject,0);
 })();
 </script>
