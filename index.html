@@ -355,6 +355,7 @@ window.calcAchievementRate=function(userName){const reports=getReports(userName)
   function inject(){try{
     var name=currentName();if(!name)return;
     var anchor=document.getElementById('weeklyGoalPanel');
+    if(!anchor){anchor=Array.prototype.slice.call(document.querySelectorAll('.card')).find(function(c){var h=c.querySelector('.card-header');return h&&h.textContent&&h.textContent.indexOf('今週の目標')!==-1;});}
     if(!anchor){anchor=Array.prototype.slice.call(document.querySelectorAll('div')).find(function(d){var t=(d.textContent||'').replace(/\s/g,'');return t.indexOf('日月火水木金土')===0;});}
     if(!anchor||!anchor.parentNode)return;
     var old=document.getElementById('monthlyGoalPanel');if(old)old.remove();
@@ -365,7 +366,7 @@ window.calcAchievementRate=function(userName){const reports=getReports(userName)
   window.__mgSaveProg=function(val){try{if(typeof S==='undefined'||S.isAdmin||!S.user||!S.user.name)return;var name=S.user.name;var ym=curMonth();var all=getMonthlyGoals(name)||{};var m=all[ym]||{};m.progress=val;all[ym]=m;saveMonthlyGoals(name,all);}catch(e){}};
   window.__mgGoalInput=function(el){clearTimeout(__mgGoalTimer);__mgGoalTimer=setTimeout(function(){window.__mgSaveGoal(el.value);},800);};
   window.__mgProgInput=function(el){clearTimeout(__mgProgTimer);__mgProgTimer=setTimeout(function(){window.__mgSaveProg(el.value);},800);};
-  ['renderCalendar','renderAdminUserReports'].forEach(function(fn){var orig=window[fn];if(typeof orig==='function'&&!orig.__mgWrapped){window[fn]=function(){var r=orig.apply(this,arguments);setTimeout(inject,0);return r;};window[fn].__mgWrapped=true;}});
+  ['renderCalendar','renderAdminUserReports','renderReportForm'].forEach(function(fn){var orig=window[fn];if(typeof orig==='function'&&!orig.__mgWrapped){window[fn]=function(){var r=orig.apply(this,arguments);setTimeout(inject,0);return r;};window[fn].__mgWrapped=true;}});
   setTimeout(inject,0);
 })();
 </script>
