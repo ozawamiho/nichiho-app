@@ -330,22 +330,33 @@ window.calcAchievementRate=function(userName){const reports=getReports(userName)
   function saveMonthlyGoals(n,o){localStorage.setItem(monthlyKey(n),JSON.stringify(o));try{if(typeof syncToFirestore==='function')syncToFirestore(monthlyKey(n),o);}catch(e){}}
   function curMonth(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
   function monthLabel(ym){var p=String(ym).split('-');return p[0]+'年'+parseInt(p[1],10)+'月';}
+  function ymFromDate(s){var p=String(s).split('-');return p[0]+'-'+('0'+parseInt(p[1],10)).slice(-2);}
+  function pad2(n){return ('0'+n).slice(-2);}
+  function targetMonth(anchor){try{
+    var hdr=anchor&&anchor.querySelector&&anchor.querySelector('.card-header');
+    var isReport=hdr&&hdr.textContent&&hdr.textContent.indexOf('今週の目標')!==-1;
+    if(isReport&&typeof S!=='undefined'){var rep=S.editingReport||S.viewingReport;if(rep&&rep.date)return ymFromDate(rep.date);}
+    if(typeof S!=='undefined'){
+      if(S.isAdmin&&S.adminCalY!=null)return S.adminCalY+'-'+pad2((S.adminCalM||0)+1);
+      if(S.calY!=null)return S.calY+'-'+pad2((S.calM||0)+1);
+    }
+  }catch(e){}return curMonth();}
   function isOwner(name){try{return typeof S!=='undefined'&&!S.isAdmin&&S.user&&S.user.name===name;}catch(e){return false;}}
   function currentName(){try{if(typeof S!=='undefined'){if(S.isAdmin&&S.adminViewingUser)return S.adminViewingUser;if(S.user&&S.user.name)return S.user.name;}}catch(e){}return null;}
   function esc2(s){try{return (typeof esc==='function')?esc(s):String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}catch(e){return '';}}
-  function computeMonth(name){
-    var ym=curMonth();var obj=getMonthlyGoals(name)||{};var m=obj[ym]||{};
+  function computeMonth(name,ym){
+    ym=ym||curMonth();var obj=getMonthlyGoals(name)||{};var m=obj[ym]||{};
     return {ym:ym,goal:(m.goal?String(m.goal):''),progress:(m.progress?String(m.progress):'')};
   }
-  function buildMonthlyHTML(name){
-    var ed=isOwner(name);var m=computeMonth(name);
+  function buildMonthlyHTML(name,ym){
+    var ed=isOwner(name);var m=computeMonth(name,ym);
     var goalBox = ed
-      ? '<textarea oninput="window.__mgGoalInput(this)" onblur="window.__mgSaveGoal(this.value)" placeholder="今月の目標を入力..." style="width:100%;box-sizing:border-box;min-height:70px;resize:vertical;border:none;border-radius:8px;padding:8px;font-size:13px;font-family:inherit;line-height:1.5;color:#333;background:rgba(255,255,255,.92);">'+esc2(m.goal)+'</textarea>'
+      ? '<textarea oninput="window.__mgGoalInput(this,\''+m.ym+'\')" onblur="window.__mgSaveGoal(this.value,\''+m.ym+'\')" placeholder="今月の目標を入力..." style="width:100%;box-sizing:border-box;min-height:70px;resize:vertical;border:none;border-radius:8px;padding:8px;font-size:13px;font-family:inherit;line-height:1.5;color:#333;background:rgba(255,255,255,.92);">'+esc2(m.goal)+'</textarea>'
       : '<div style="font-size:13px;line-height:1.5;white-space:pre-wrap;background:rgba(255,255,255,.15);border-radius:8px;padding:8px;min-height:54px;">'+(m.goal?esc2(m.goal):'<span style="opacity:.7;">（未設定）</span>')+'</div>';
     var progBox = ed
-      ? '<textarea oninput="window.__mgProgInput(this)" onblur="window.__mgSaveProg(this.value)" placeholder="進捗を記入（いつでも更新OK）..." style="width:100%;box-sizing:border-box;min-height:70px;resize:vertical;border:none;border-radius:8px;padding:8px;font-size:13px;font-family:inherit;line-height:1.5;color:#333;background:rgba(255,255,255,.92);">'+esc2(m.progress)+'</textarea>'
+      ? '<textarea oninput="window.__mgProgInput(this,\''+m.ym+'\')" onblur="window.__mgSaveProg(this.value,\''+m.ym+'\')" placeholder="進捗を記入（いつでも更新OK）..." style="width:100%;box-sizing:border-box;min-height:70px;resize:vertical;border:none;border-radius:8px;padding:8px;font-size:13px;font-family:inherit;line-height:1.5;color:#333;background:rgba(255,255,255,.92);">'+esc2(m.progress)+'</textarea>'
       : '<div style="font-size:13px;line-height:1.5;white-space:pre-wrap;background:rgba(255,255,255,.15);border-radius:8px;padding:8px;min-height:54px;">'+(m.progress?esc2(m.progress):'<span style="opacity:.7;">（記入はまだありません）</span>')+'</div>';
-    return '<div id="monthlyGoalPanel" style="background:linear-gradient(135deg,#16a085,#1abc9c);color:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;">'
+    return '<div id="monthlyGoalPanel" data-ym="'+m.ym+'" style="background:linear-gradient(135deg,#16a085,#1abc9c);color:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;"><div style="font-weight:700;">📅 今月の目標</div><div style="background:rgba(255,255,255,.22);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;">'+monthLabel(m.ym)+'</div></div>'
       +'<div style="display:flex;flex-wrap:wrap;gap:10px;">'
         +'<div style="flex:1 1 200px;min-width:0;"><div style="font-size:11px;font-weight:700;opacity:.9;margin-bottom:4px;">🎯 目標</div>'+goalBox+'</div>'
@@ -365,15 +376,16 @@ window.calcAchievementRate=function(userName){const reports=getReports(userName)
     var anchor=name?findAnchor():null;
     var existing=document.getElementById('monthlyGoalPanel');
     if(!anchor||!anchor.parentNode){ if(existing)existing.remove(); return; }
-    if(existing&&existing.nextElementSibling===anchor) return; /* already in place; don't rebuild (keeps textarea input) */
+    var ym=targetMonth(anchor);
+    if(existing&&existing.nextElementSibling===anchor&&existing.getAttribute('data-ym')===ym) return; /* in place & same month */
     if(existing)existing.remove();
-    var tmp=document.createElement('div');tmp.innerHTML=buildMonthlyHTML(name);
+    var tmp=document.createElement('div');tmp.innerHTML=buildMonthlyHTML(name,ym);
     anchor.parentNode.insertBefore(tmp.firstChild,anchor);
   }catch(e){}}
-  window.__mgSaveGoal=function(val){try{if(typeof S==='undefined'||S.isAdmin||!S.user||!S.user.name)return;var name=S.user.name;var ym=curMonth();var all=getMonthlyGoals(name)||{};var m=all[ym]||{};m.goal=val;all[ym]=m;saveMonthlyGoals(name,all);}catch(e){}};
-  window.__mgSaveProg=function(val){try{if(typeof S==='undefined'||S.isAdmin||!S.user||!S.user.name)return;var name=S.user.name;var ym=curMonth();var all=getMonthlyGoals(name)||{};var m=all[ym]||{};m.progress=val;all[ym]=m;saveMonthlyGoals(name,all);}catch(e){}};
-  window.__mgGoalInput=function(el){clearTimeout(__mgGoalTimer);__mgGoalTimer=setTimeout(function(){window.__mgSaveGoal(el.value);},800);};
-  window.__mgProgInput=function(el){clearTimeout(__mgProgTimer);__mgProgTimer=setTimeout(function(){window.__mgSaveProg(el.value);},800);};
+  window.__mgSaveGoal=function(val,ym){try{if(typeof S==='undefined'||S.isAdmin||!S.user||!S.user.name)return;var name=S.user.name;ym=ym||curMonth();var all=getMonthlyGoals(name)||{};var m=all[ym]||{};m.goal=val;all[ym]=m;saveMonthlyGoals(name,all);}catch(e){}};
+  window.__mgSaveProg=function(val,ym){try{if(typeof S==='undefined'||S.isAdmin||!S.user||!S.user.name)return;var name=S.user.name;ym=ym||curMonth();var all=getMonthlyGoals(name)||{};var m=all[ym]||{};m.progress=val;all[ym]=m;saveMonthlyGoals(name,all);}catch(e){}};
+  window.__mgGoalInput=function(el,ym){clearTimeout(__mgGoalTimer);__mgGoalTimer=setTimeout(function(){window.__mgSaveGoal(el.value,ym);},800);};
+  window.__mgProgInput=function(el,ym){clearTimeout(__mgProgTimer);__mgProgTimer=setTimeout(function(){window.__mgSaveProg(el.value,ym);},800);};
   ['renderCalendar','renderAdminUserReports','renderReportForm'].forEach(function(fn){var orig=window[fn];if(typeof orig==='function'&&!orig.__mgWrapped){window[fn]=function(){var r=orig.apply(this,arguments);setTimeout(inject,0);return r;};window[fn].__mgWrapped=true;}});
   var __mgObsTimer;
   function scheduleInject(){clearTimeout(__mgObsTimer);__mgObsTimer=setTimeout(inject,120);}
