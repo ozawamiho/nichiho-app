@@ -328,7 +328,7 @@ window.calcAchievementRate=function(userName){const reports=getReports(userName)
   function monthlyKey(n){return 'nissho_monthly_'+n;}
   function getMonthlyGoals(n){try{return JSON.parse(localStorage.getItem(monthlyKey(n))||'{}');}catch(e){return {};}}
   function saveMonthlyGoals(n,o){localStorage.setItem(monthlyKey(n),JSON.stringify(o));try{if(typeof syncToFirestore==='function')syncToFirestore(monthlyKey(n),o);}catch(e){}}
-  function curMonth(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}function viewYM(){try{if(typeof S!=='undefined'){if(S.isAdmin&&S.adminViewingUser){if(typeof S.adminCalY==='number'&&typeof S.adminCalM==='number')return S.adminCalY+'-'+String(S.adminCalM+1).padStart(2,'0');}else{if(typeof S.calY==='number'&&typeof S.calM==='number')return S.calY+'-'+String(S.calM+1).padStart(2,'0');}}}catch(e){}return curMonth();}
+  function curMonth(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
   function monthLabel(ym){var p=String(ym).split('-');return p[0]+'年'+parseInt(p[1],10)+'月';}
   function ymFromDate(s){var p=String(s).split('-');return p[0]+'-'+('0'+parseInt(p[1],10)).slice(-2);}
   function pad2(n){return ('0'+n).slice(-2);}
