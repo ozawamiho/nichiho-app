@@ -393,4 +393,108 @@ window.calcAchievementRate=function(userName){const reports=getReports(userName)
   setTimeout(inject,0);
 })();
 </script>
+<!-- ===== 退職者の非表示機能（データは保持） / 追加ブロック ここから ===== -->
+<script>
+(function(){
+  // 退職状態は各ユーザーの設定(settings.retired)に保存するので、
+  // 既存のFirestore同期にそのまま乗り、日報データは一切消えません。
+  function isRetired(n){
+    try{ var s = window.getUserSettings ? getUserSettings(n) : null; return !!(s && s.retired); }
+    catch(e){ return false; }
+  }
+  function setRetired(n, val){
+    var s = getUserSettings(n) || {name:n, dept:''};
+    s.name = s.name || n;
+    s.retired = !!val;
+    saveUserSettings(s);
+  }
+
+  // 管理者画面で「退職者も表示」するかどうか（再読込でリセット）
+  var showRetiredInAdmin = false;
+
+  // getUsers() を一時的に「現役のみ」に差し替えて fn を実行
+  function withActiveOnly(fn){
+    var real = window.getUsers;
+    window.getUsers = function(){ return real().filter(function(n){ return !isRetired(n); }); };
+    try { return fn(); } finally { window.getUsers = real; }
+  }
+
+  function esc2(s){
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // ---- 1) ログイン画面：退職者は常に非表示 ----
+  if (window.renderLogin){
+    var _login = window.renderLogin;
+    window.renderLogin = function(){
+      var self=this, args=arguments;
+      return withActiveOnly(function(){ return _login.apply(self, args); });
+    };
+  }
+
+  // ---- 2) 管理者画面：退職者は既定で非表示＋管理パネルを追加 ----
+  if (window.renderAdmin){
+    var _admin = window.renderAdmin;
+    window.renderAdmin = function(){
+      var self=this, args=arguments;
+      var body = showRetiredInAdmin
+        ? _admin.apply(self, args)
+        : withActiveOnly(function(){ return _admin.apply(self, args); });
+      return body + retiredPanel();
+    };
+  }
+
+  // ---- 管理パネルのHTML ----
+  function retiredPanel(){
+    var all = (window.getUsers ? getUsers() : []); // 実体（全員）
+    var retired = all.filter(isRetired);
+    var active  = all.filter(function(n){ return !isRetired(n); });
+
+    var rows = '';
+    retired.forEach(function(n){
+      rows += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;background:#fafafa">'
+        + '<span style="font-weight:600;color:#555">'+esc2(n)+' <span style="font-weight:400;color:#999;font-size:12px">（日報は保持中）</span></span>'
+        + '<button onclick="window.__restoreUser(\''+esc2(n).replace(/\\/g,'\\\\').replace(/\x27/g,"\\\x27")+'\')" style="background:var(--success,#2e7d32);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer">復帰</button>'
+        + '</div>';
+    });
+    if (!rows) rows = '<div style="color:#999;font-size:13px;padding:4px 2px">退職者として登録された人はいません。</div>';
+
+    var addOptions = active.map(function(n){ return '<option value="'+esc2(n)+'">'+esc2(n)+'</option>'; }).join('');
+
+    return ''
+      + '<div style="margin:18px 12px 80px;padding:14px;border:1px solid #e2e2e2;border-radius:12px;background:#fff">'
+      +   '<div style="font-weight:700;color:var(--primary,#1F3864);margin-bottom:4px">退職者の管理（管理者のみ）</div>'
+      +   '<div style="font-size:12px;color:#888;margin-bottom:12px">退職者は日報の一覧から自動的に非表示になります。データは消えず、いつでも復帰できます。</div>'
+      +   '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">'
+      +     '<select id="__retireSelect" style="flex:1;min-width:140px;padding:8px;border:1px solid #ccc;border-radius:6px">'+addOptions+'</select>'
+      +     '<button onclick="window.__retireSelected()" style="background:var(--admin,#8a6d3b);color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer">退職にする</button>'
+      +   '</div>'
+      +   '<div style="font-weight:600;font-size:13px;color:#666;margin:8px 0 6px">退職者一覧</div>'
+      +   rows
+      +   '<label style="display:flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;color:#666;cursor:pointer">'
+      +     '<input type="checkbox" '+(showRetiredInAdmin?'checked':'')+' onclick="window.__toggleShowRetired()"> 退職者の日報も一覧に表示する（確認用）'
+      +   '</label>'
+      + '</div>';
+  }
+
+  function rerender(){ try{ if(window.render) render(); }catch(e){} }
+
+  window.__retireSelected = function(){
+    var sel = document.getElementById('__retireSelect');
+    if(!sel || !sel.value) return;
+    var n = sel.value;
+    if(confirm('「'+n+'」を退職者にします。\n日報データは保持され、一覧からは非表示になります。よろしいですか？')){
+      setRetired(n, true); rerender();
+    }
+  };
+  window.__restoreUser = function(n){ setRetired(n, false); rerender(); };
+  window.__toggleShowRetired = function(){ showRetiredInAdmin = !showRetiredInAdmin; rerender(); };
+
+  // パッチ適用後に再描画して即反映
+  rerender();
+})();
+</script>
+<!-- ===== 退職者の非表示機能 ここまで ===== -->
 </body><div class="glasp-extension" style="display: block; width: unset; margin: unset; padding: unset; border: unset; border-radius: unset; outline: unset; background-color: unset; box-shadow: unset; position: fixed; bottom: 16px; right: 16px; z-index: 9999;"><div class="glasp-extension" style="font-family: inherit;"></div></div></html>
